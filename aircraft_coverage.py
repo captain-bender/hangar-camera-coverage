@@ -22,6 +22,7 @@ def interpolate_line(start, end, num_points=100):
 
 def order_points(points):
     # Start with the first point
+    print("Starting the ordering of the points")
     ordered = [points[0]]
     points = points[1:]
     
@@ -36,6 +37,7 @@ def order_points(points):
     # Close the loop
     if ordered[0] != ordered[-1]:
         ordered.append(ordered[0])
+    print("Completed the ordering of the points")
     return ordered
 
 # Function to group points into separate contours based on proximity
@@ -63,6 +65,7 @@ dxf_doc = ezdxf.readfile('737-400.dxf')
 msp = dxf_doc.modelspace()
 
 # Extract the boundary points
+print("Extracting the boundary points")
 boundary_points = []
 for entity in msp:
     if entity.dxftype() == 'LWPOLYLINE':
@@ -89,6 +92,7 @@ if boundary_points[0] != boundary_points[-1]:
 grouped_points = group_points(boundary_points, threshold=50)  # Adjust threshold if necessary
 
 # Process each group of points to create polygons
+print("Create polygons from the points")
 polygons = []
 for group in grouped_points:
     ordered = order_points(group)
@@ -109,6 +113,7 @@ for polygon in polygons:
     scaled_polygon = Polygon(scaled_exterior_coords)
     scaled_polygons.append(scaled_polygon)
 
+print("Creating the plots")
 # Plot the polygons and their inflated versions
 plt.figure(figsize=(10, 8))
 for i, polygon in enumerate(scaled_polygons):
@@ -127,6 +132,41 @@ for i, polygon in enumerate(scaled_polygons):
 plt.xlabel('X Coordinate (meters)')
 plt.ylabel('Y Coordinate (meters)')
 plt.title('Aircraft Shape with Inflated Perimeter (in meters)')
+plt.legend()
+plt.grid(True)
+plt.axis('equal')
+plt.show(block=False)
+
+# Grid resolution in meters
+grid_resolution = 0.5
+
+# Get bounding box of the inflated polygon
+minx, miny, maxx, maxy = inflated_polygon.bounds
+
+# Generate grid points within the bounding box
+x_coords = np.arange(minx, maxx + grid_resolution, grid_resolution)
+y_coords = np.arange(miny, maxy + grid_resolution, grid_resolution)
+xx, yy = np.meshgrid(x_coords, y_coords)
+grid_points = np.vstack((xx.ravel(), yy.ravel())).T
+
+# Filter points inside the inflated polygon
+from shapely.geometry import Point
+
+inside_points = []
+for x, y in grid_points:
+    point = Point(x, y)
+    if inflated_polygon.contains(point):
+        inside_points.append((x, y))
+inside_points = np.array(inside_points)
+
+# Plot the grid points inside the inflated perimeter in a separate figure
+plt.figure(figsize=(10, 8))
+inside_points = np.array(inside_points)  # Ensure it's a NumPy array
+plt.scatter(inside_points[:, 0], inside_points[:, 1], color='green', s=10, label='Grid Points')
+
+plt.xlabel('X Coordinate (meters)')
+plt.ylabel('Y Coordinate (meters)')
+plt.title('Grid Points Inside Inflated Perimeter')
 plt.legend()
 plt.grid(True)
 plt.axis('equal')
