@@ -226,3 +226,61 @@ for cam_idx, coverage_area in enumerate(camera_coverage_areas):
     for pt_idx, (pt_x, pt_y) in enumerate(inside_points):
         if coverage_area.contains(Point(pt_x, pt_y)):
             coverage_matrix[pt_idx, cam_idx] = True
+
+from pulp import LpProblem, LpMinimize, LpVariable, LpBinary, lpSum, LpStatus
+
+# Define the problem
+prob = LpProblem("CameraCoverageOptimization", LpMinimize)
+
+# Decision variables
+camera_vars = LpVariable.dicts("Camera", range(num_cameras), cat=LpBinary)
+
+# Objective function
+prob += lpSum([camera_vars[i] for i in range(num_cameras)])
+
+# Constraints
+for pt_idx in range(num_points):
+    prob += lpSum([coverage_matrix[pt_idx, cam_idx] * camera_vars[cam_idx] for cam_idx in range(num_cameras)]) >= 1, f"Point_{pt_idx}_coverage"
+
+# Solve the problem
+prob.solve()
+
+print(f"Optimization Status: {LpStatus[prob.status]}")
+selected_cameras = [cam_idx for cam_idx in range(num_cameras) if camera_vars[cam_idx].varValue == 1]
+print(f"Number of cameras selected: {len(selected_cameras)}")
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon as pltPolygon
+from matplotlib.patches import Rectangle
+
+# Create a plot
+fig, ax = plt.subplots(figsize=(12, 8))
+
+# Plot the inflated aircraft polygon
+x_inflated, y_inflated = inflated_polygon.exterior.xy
+ax.plot(x_inflated, y_inflated, color='gray', linewidth=1, label='Inflated Aircraft Perimeter')
+
+# Plot the original aircraft polygon
+x_aircraft, y_aircraft = polygon.exterior.xy
+ax.plot(x_aircraft, y_aircraft, color='black', linewidth=2, label='Aircraft Perimeter')
+
+# Plot selected cameras and their coverage areas
+for cam_idx in selected_cameras:
+    cam_x, cam_y = camera_positions[cam_idx]
+    # Plot camera position
+    ax.plot(cam_x, cam_y, 'ro')  # Red dot for camera
+    # Plot coverage area
+    half_W = W / 2
+    half_L = L / 2
+    coverage_rect = Rectangle((cam_x - half_W, cam_y - half_L), W, L, linewidth=1, edgecolor='blue', facecolor='blue', alpha=0.2)
+    ax.add_patch(coverage_rect)
+
+# Set plot limits
+ax.set_xlim(minx - 10, maxx + 10)
+ax.set_ylim(miny - 10, maxy + 10)
+ax.set_aspect('equal')
+ax.set_xlabel('X Coordinate (m)')
+ax.set_ylabel('Y Coordinate (m)')
+ax.set_title('Optimized Camera Placement and Coverage with Precise Aircraft Shape')
+ax.legend()
+plt.show()
