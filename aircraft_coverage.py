@@ -4,6 +4,8 @@ import ezdxf
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from matplotlib.patches import Polygon as pltPolygon
+from matplotlib.patches import Rectangle
 
 # Measure the pixel length of the aircraft
 def measure_length(polygon):
@@ -248,10 +250,6 @@ prob.solve()
 print(f"Optimization Status: {LpStatus[prob.status]}")
 selected_cameras = [cam_idx for cam_idx in range(num_cameras) if camera_vars[cam_idx].varValue == 1]
 print(f"Number of cameras selected: {len(selected_cameras)}")
-
-import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon as pltPolygon
-from matplotlib.patches import Rectangle
 
 # Create a plot
 fig, ax = plt.subplots(figsize=(12, 8))
