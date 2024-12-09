@@ -1,5 +1,5 @@
 # Required libraries
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, Point, box
 import ezdxf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -171,3 +171,58 @@ plt.legend()
 plt.grid(True)
 plt.axis('equal')
 plt.show()
+
+# Known parameters
+h = 12  # Hangar height in meters
+theta_h = 60  # Horizontal FOV in degrees
+theta_v = 45  # Vertical FOV in degrees
+
+# Convert FOV angles to radians
+theta_h_rad = np.radians(theta_h)
+theta_v_rad = np.radians(theta_v)
+
+# Calculate coverage dimensions
+W = 2 * h * np.tan(theta_h_rad / 2)
+L = 2 * h * np.tan(theta_v_rad / 2)
+
+print(f"Coverage Width (W): {W:.2f} meters")
+print(f"Coverage Length (L): {L:.2f} meters")
+
+# Overlap factor (less than or equal to 1 for closer spacing)
+overlap_factor = 0.8
+
+# Determine spacing for candidate camera positions
+x_interval = W * overlap_factor
+y_interval = L * overlap_factor
+
+# Get bounding box of the polygon
+minx, miny, maxx, maxy = inflated_polygon.bounds
+
+# Generate candidate camera positions as a grid within the bounding box
+camera_x_positions = np.arange(minx, maxx + x_interval, x_interval)
+camera_y_positions = np.arange(miny, maxy + y_interval, y_interval)
+camera_xx, camera_yy = np.meshgrid(camera_x_positions, camera_y_positions)
+camera_positions = np.vstack((camera_xx.ravel(), camera_yy.ravel())).T
+
+print("Number of candidate positions:", len(camera_positions))
+
+# Assuming W, L, and camera_positions are already defined
+camera_coverage_areas = []
+for cam_pos in camera_positions:
+    cam_x, cam_y = cam_pos
+    half_W = W / 2
+    half_L = L / 2
+    # Create a rectangle centered at the camera position
+    coverage_area = box(cam_x - half_W, cam_y - half_L, cam_x + half_W, cam_y + half_L)
+    camera_coverage_areas.append(coverage_area)
+
+# Initialize coverage matrix
+num_points = inside_points.shape[0]
+num_cameras = camera_positions.shape[0]
+coverage_matrix = np.zeros((num_points, num_cameras), dtype=bool)
+
+# Build coverage matrix
+for cam_idx, coverage_area in enumerate(camera_coverage_areas):
+    for pt_idx, (pt_x, pt_y) in enumerate(inside_points):
+        if coverage_area.contains(Point(pt_x, pt_y)):
+            coverage_matrix[pt_idx, cam_idx] = True
