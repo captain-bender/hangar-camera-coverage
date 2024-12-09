@@ -1,10 +1,18 @@
 # Required libraries
-import shapely
 from shapely.geometry import Polygon
-import ezdxf  # For reading DXF files
+import ezdxf
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
+
+# Measure the pixel length of the aircraft
+def measure_length(polygon):
+    x, y = polygon.exterior.xy
+    x_min, x_max = min(x), max(x)
+    return x_max - x_min
+
+# Known real-world length of the aircraft (in meters)
+real_length_meters = 36.4478
 
 # Function to generate intermediate points between two points
 def interpolate_line(start, end, num_points=100):
@@ -88,16 +96,37 @@ for group in grouped_points:
     if len(cleaned) > 2:  # Ensure valid polygon
         polygons.append(Polygon(cleaned))
 
-# Plot the polygons
+# Calculate the scale factor
+pixel_length = measure_length(polygons[0])  # Measure the aircraft length in pixels
+scale_factor = real_length_meters / pixel_length
+
+# Convert polygons to meters
+scaled_polygons = []
+for polygon in polygons:
+    # Scale the coordinates
+    scaled_exterior_coords = [(x * scale_factor, y * scale_factor) for x, y in polygon.exterior.coords]
+    # Recreate the polygon with scaled coordinates
+    scaled_polygon = Polygon(scaled_exterior_coords)
+    scaled_polygons.append(scaled_polygon)
+
+# Plot the polygons and their inflated versions
 plt.figure(figsize=(10, 8))
-for i, polygon in enumerate(polygons):
+for i, polygon in enumerate(scaled_polygons):
     if not polygon.is_empty:
+        # Original polygon in meters
         x, y = polygon.exterior.xy
-        plt.plot(x, y, linewidth=2, label=f'Contour {i+1}')
-        plt.fill(x, y, alpha=0.5)
-plt.xlabel('X Coordinate')
-plt.ylabel('Y Coordinate')
-plt.title('Ordered Aircraft Shape with Separate Contours')
+        plt.plot(x, y, linewidth=2, label=f'Original Contour {i+1}', color='blue')
+        plt.fill(x, y, alpha=0.5, color='lightblue')
+
+        # Inflated polygon in meters
+        inflated_polygon = polygon.buffer(1.0)  # Inflate by 1 meter
+        x_inflated, y_inflated = inflated_polygon.exterior.xy
+        plt.plot(x_inflated, y_inflated, linewidth=2, label=f'Inflated Contour {i+1}', color='red')
+        plt.fill(x_inflated, y_inflated, alpha=0.3, color='pink')
+
+plt.xlabel('X Coordinate (meters)')
+plt.ylabel('Y Coordinate (meters)')
+plt.title('Aircraft Shape with Inflated Perimeter (in meters)')
 plt.legend()
 plt.grid(True)
 plt.axis('equal')
