@@ -4,8 +4,8 @@ import ezdxf
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import defaultdict
-from matplotlib.patches import Polygon as pltPolygon
 from matplotlib.patches import Rectangle
+import yaml
 
 # Measure the pixel length of the aircraft
 def measure_length(polygon):
@@ -17,7 +17,7 @@ def measure_length(polygon):
 real_length_meters = 36.4478
 
 # Function to generate intermediate points between two points
-def interpolate_line(start, end, num_points=100):
+def interpolate_line(start, end, num_points):
     x = np.linspace(start[0], end[0], num_points)
     y = np.linspace(start[1], end[1], num_points)
     return list(zip(x, y))
@@ -62,8 +62,31 @@ def group_points(points, threshold=50):
 
     return list(groups.values())
 
+with open("config.yaml", "r") as file:
+    config = yaml.load(file, Loader=yaml.FullLoader)
+
+# Access values from the dictionary
+input_dxf_path = config['paths']['input_dxf_path']
+
+hangar_height = config['parameters']['hangar_height']
+horizontal_FOV = config['parameters']['horizontal_FOV']
+vertical_FOV = config['parameters']['vertical_FOV']
+overlap_factor_percentage = config['parameters']['overlap_factor_percentage']
+line_interpolation_points = config['parameters']['line_interpolation_points']
+inflation_aircraft_perimeter = config['parameters']['inflation_aircraft_perimeter']
+grid_resolution_distance = config['parameters']['grid_resolution_distance']
+
+print(f"Input dxf path: {input_dxf_path}")
+print(f"Hangar height: {hangar_height}")
+print(f"Horizontal FOV: {horizontal_FOV}")
+print(f"Vertical FOV: {vertical_FOV}")
+print(f"Overlap factor percentage: {overlap_factor_percentage}")
+print(f"Line iterpolation points: {line_interpolation_points}")
+print(f"Inflation aircraft perimeter: {inflation_aircraft_perimeter}")
+print(f"Grid resolution distance: {grid_resolution_distance}")
+
 # Load the DXF file
-dxf_doc = ezdxf.readfile('737-400.dxf')
+dxf_doc = ezdxf.readfile(input_dxf_path)
 msp = dxf_doc.modelspace()
 
 # Extract the boundary points
@@ -77,7 +100,7 @@ for entity in msp:
         start_point = entity.dxf.start
         end_point = entity.dxf.end
         # Generate interpolated points for the line
-        line_points = interpolate_line(start_point, end_point)
+        line_points = interpolate_line(start_point, end_point, line_interpolation_points)
         boundary_points.extend(line_points)
     # Approximate the circle with points
     elif entity.dxftype() == 'SPLINE':
@@ -126,7 +149,7 @@ for i, polygon in enumerate(scaled_polygons):
         plt.fill(x, y, alpha=0.5, color='lightblue')
 
         # Inflated polygon in meters
-        inflated_polygon = polygon.buffer(1.0)  # Inflate by 1 meter
+        inflated_polygon = polygon.buffer(inflation_aircraft_perimeter)
         x_inflated, y_inflated = inflated_polygon.exterior.xy
         plt.plot(x_inflated, y_inflated, linewidth=2, label=f'Inflated Contour {i+1}', color='red')
         plt.fill(x_inflated, y_inflated, alpha=0.3, color='pink')
@@ -140,7 +163,7 @@ plt.axis('equal')
 plt.show(block=False)
 
 # Grid resolution in meters
-grid_resolution = 0.5
+grid_resolution = grid_resolution_distance
 
 # Get bounding box of the inflated polygon
 minx, miny, maxx, maxy = inflated_polygon.bounds
@@ -175,9 +198,9 @@ plt.axis('equal')
 plt.show()
 
 # Known parameters
-h = 12  # Hangar height in meters
-theta_h = 60  # Horizontal FOV in degrees
-theta_v = 45  # Vertical FOV in degrees
+h = hangar_height  # Hangar height in meters
+theta_h = horizontal_FOV  # Horizontal FOV in degrees
+theta_v = vertical_FOV  # Vertical FOV in degrees
 
 # Convert FOV angles to radians
 theta_h_rad = np.radians(theta_h)
@@ -191,7 +214,7 @@ print(f"Coverage Width (W): {W:.2f} meters")
 print(f"Coverage Length (L): {L:.2f} meters")
 
 # Overlap factor (less than or equal to 1 for closer spacing)
-overlap_factor = 0.8
+overlap_factor = overlap_factor_percentage
 
 # Determine spacing for candidate camera positions
 x_interval = W * overlap_factor
