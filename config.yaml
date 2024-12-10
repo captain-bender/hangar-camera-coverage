@@ -1,0 +1,12 @@
+paths:
+  input_dxf_path: "737-400.dxf"
+parameters:
+  hangar_height: 12
+  horizontal_FOV: 60
+  vertical_FOV: 45
+  overlap_factor_percentage: 0.8
+  line_interpolation_points: 100
+  inflation_aircraft_perimeter: 1.0
+  grid_resolution_distance: 0.5
+  hangar_x_offset: 100.0
+  hangar_y_offset: 50.0
